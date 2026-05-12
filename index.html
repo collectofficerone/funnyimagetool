@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funny Image Transformer</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            border: 2px dashed #ccc;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        canvas, video {
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin: 10px 0;
+        }
+        button {
+            background: #ff69b4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #ff1493;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Make Your Image Cute & Funny</h1>
+    <p>Click below, upload a photo or use your camera, and we'll transform it instantly!</p>
+
+    <div class="container">
+        <h3>📁 Option 1: Upload an image</h3>
+        <input type="file" id="imageUpload" accept="image/jpeg,image/png,image/jpg">
+    </div>
+
+    <div class="container">
+        <h3>📷 Option 2: Take a photo with camera</h3>
+        <button id="startCameraBtn">Start Camera</button>
+        <video id="video" autoplay playsinline class="hidden"></video>
+        <button id="captureBtn" class="hidden">📸 Take Photo</button>
+    </div>
+
+    <div class="container" id="resultContainer" style="display:none;">
+        <h3>✨ Your Funny Cute Result ✨</h3>
+        <canvas id="outputCanvas"></canvas>
+        <br>
+        <button id="downloadBtn">⬇️ Download Cute Image</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const startCameraBtn = document.getElementById('startCameraBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const imageUpload = document.getElementById('imageUpload');
+        const outputCanvas = document.getElementById('outputCanvas');
+        const resultContainer = document.getElementById('resultContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        function makeFunnyAndCute(imgElement) {
+            const tempCanvas = document.createElement('canvas');
+            const ctx = tempCanvas.getContext('2d');
+            
+            let width = imgElement.width;
+            let height = imgElement.height;
+            
+            const maxSize = 800;
+            if (width > maxSize) {
+                height = (height * maxSize) / width;
+                width = maxSize;
+            }
+            if (height > maxSize) {
+                width = (width * maxSize) / height;
+                height = maxSize;
+            }
+            
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            ctx.drawImage(imgElement, 0, 0, width, height);
+            
+            let imageData = ctx.getImageData(0, 0, width, height);
+            let data = imageData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                let x = (i / 4) % width;
+                let y = Math.floor((i / 4) / width);
+                
+                let r = data[i];
+                let g = data[i+1];
+                let b = data[i+2];
+                
+                r = Math.min(255, r * 1.2);
+                g = Math.min(255, g * 1.05);
+                b = Math.min(255, b * 0.85);
+                
+                let centerX = width / 2;
+                let centerY = height / 2;
+                
+                if (y > centerY * 0.7 && y < height * 0.85 && 
+                    (x > centerX - width*0.25 && x < centerX + width*0.25)) {
+                    r = Math.min(255, r + 50);
+                    g = Math.min(255, g + 20);
+                    b = Math.min(255, b + 20);
+                }
+                
+                let distFromCenter = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                let maxDist = Math.sqrt(Math.pow(centerX, 2) + Math.pow(centerY, 2));
+                let vignette = Math.max(0.7, 1 - (distFromCenter / maxDist) * 0.4);
+                r = r * vignette;
+                g = g * vignette;
+                b = b * vignette;
+                
+                let eyeY = height * 0.35;
+                if (Math.abs(y - eyeY) < height*0.08) {
+                    if (Math.abs(x - width*0.35) < width*0.1 || Math.abs(x - width*0.65) < width*0.1) {
+                        r = Math.min(255, r + 60);
+                        g = Math.min(255, g + 60);
+                        b = Math.min(255, b + 60);
+                    }
+                }
+                
+                data[i] = Math.min(255, Math.max(0, r));
+                data[i+1] = Math.min(255, Math.max(0, g));
+                data[i+2] = Math.min(255, Math.max(0, b));
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            
+            outputCanvas.width = width;
+            outputCanvas.height = height;
+            const outputCtx = outputCanvas.getContext('2d');
+            outputCtx.drawImage(tempCanvas, 0, 0);
+            
+            resultContainer.style.display = 'block';
+        }
+        
+        imageUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    makeFunnyAndCute(img);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        startCameraBtn.addEventListener('click', async function() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.classList.remove('hidden');
+                captureBtn.classList.remove('hidden');
+                startCameraBtn.disabled = true;
+            } catch (err) {
+                alert("Could not access camera. Please check permissions.");
+            }
+        });
+        
+        captureBtn.addEventListener('click', function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.classList.add('hidden');
+                captureBtn.classList.add('hidden');
+                startCameraBtn.disabled = false;
+            }
+            
+            const img = new Image();
+            img.onload = function() {
+                makeFunnyAndCute(img);
+            };
+            img.src = canvas.toDataURL('image/png');
+        });
+        
+        downloadBtn.addEventListener('click', function() {
+            const link = document.createElement('a');
+            link.download = 'funny_cute_image.png';
+            link.href = outputCanvas.toDataURL('image/png');
+            link.click();
+        });
+    </script>
+    
+    <footer style="margin-top: 40px; font-size: 12px; color: gray;">
+        ⚡ Your image never leaves your device — everything happens locally in your browser.<br>
+        No data is uploaded to any server.
+    </footer>
+</body>
+</html>
